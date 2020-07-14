@@ -1,6 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,39 +15,36 @@ namespace Generator1
     {
         public void Execute(SourceGeneratorContext context)
         {
-            // Using the context, get any additional files that end in .xmlsettings
             IEnumerable<AdditionalText> settingsFiles = context.AdditionalFiles.Where(at => at.Path.EndsWith(".json"));
             foreach (var file in settingsFiles)
             {
                 var fileName = Path.GetFileNameWithoutExtension(file.Path);
-                var source = GetClass(
-                    fileName,
-                    JsonDocument.Parse(file.GetText().ToString()).RootElement
-                );
-                context.AddSource($"Json_{fileName}.cs", SourceText.From(source, Encoding.UTF8));
+                var jsonDocument = JsonDocument.Parse(file.GetText().ToString());
+                var sb = new StringBuilder($@"
+namespace MyGenerated 
+{{
+    public class {fileName} 
+    {{
+        ");
+                foreach (var prop in jsonDocument.RootElement.EnumerateObject())
+                {
+                    sb.AppendLine($"public {GetPropertyType(prop.Value.ValueKind)} {prop.Name} {{ get; set; }}");
+                }
+
+                sb.AppendLine("} }");
+
+                var content = sb.ToString();
+
+                context.AddSource($"Json_{fileName}.cs", SourceText.From(content, Encoding.UTF8));
             }
-        }
-
-        static string GetClass(string name, JsonElement el)
-        {
-            var sb = new StringBuilder($@"
-    public class {name} 
-    {{");
-            foreach (var prop in el.EnumerateObject())
-            {
-                sb.AppendLine($"public {GetPropertyType(prop.Value.ValueKind)} {prop.Name} {{ get; set; }}");
-            }
-
-            sb.AppendLine("}");
-
-            return sb.ToString();
         }
 
         static string GetPropertyType(JsonValueKind kind) =>
             kind switch
             {
                 JsonValueKind.String => "string",
-                _ => "int"
+                JsonValueKind.Number => "int",
+                _ => "string"
             };
 
         public void Initialize(InitializationContext context)

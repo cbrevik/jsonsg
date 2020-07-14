@@ -10,8 +10,11 @@ namespace jsonsource
         {
             var jsonString = File.ReadAllText("./Spotify/me.json");
             var jsonDocument = JsonDocument.Parse(jsonString);
-
             PrintElement(jsonDocument.RootElement);
+            var asd = new MyGenerated.me();
+            // var add = new GeneratedJson.me();
+            // add.id = "Sdas";
+            // Console.WriteLine(add.id);
         }
 
         static void PrintElement(JsonElement el)
